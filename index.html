@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>表格清洗台 · 本地隐私处理</title>
+<style>
+  :root{
+    --bg:#f4f6f9; --card:#ffffff; --bd:#e3e8ef; --tx:#1f2933; --mut:#6b7683;
+    --acc:#2563eb; --acc-d:#1e40af; --ok:#16a34a; --warn:#d97706;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:-apple-system,"Segoe UI","Microsoft YaHei",Roboto,sans-serif;background:var(--bg);color:var(--tx)}
+  header{padding:18px 22px;background:var(--card);border-bottom:1px solid var(--bd);display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+  header h1{font-size:18px;margin:0;font-weight:700}
+  .tag{font-size:12px;color:#fff;background:var(--ok);border-radius:20px;padding:2px 10px;font-weight:600}
+  .priv{font-size:12px;color:var(--mut);margin-left:auto}
+  main{max-width:980px;margin:22px auto;padding:0 16px}
+  .card{background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:18px;margin-bottom:18px}
+  .row{display:flex;gap:12px;flex-wrap:wrap;align-items:center}
+  .muted{color:var(--mut);font-size:13px}
+  h2{font-size:16px;margin:0 0 12px}
+  h3{font-size:13px;margin:16px 0 6px;color:var(--mut);text-transform:none}
+  button{font:inherit;border:none;border-radius:8px;padding:8px 16px;cursor:pointer}
+  .btn-p{background:var(--acc);color:#fff}
+  .btn-p:hover{background:var(--acc-d)}
+  .btn-o{background:#eef3ff;color:var(--acc-d)}
+  .btn-o:disabled{opacity:.45;cursor:not-allowed}
+  .btn-r{background:#fee2e2;color:#b91c1c}
+  input[type=file]{font:inherit}
+  label.cb{display:inline-flex;gap:6px;align-items:center;font-size:13px;cursor:pointer}
+  .toolbar{display:flex;gap:10px;flex-wrap:wrap;align-items:center;padding:10px 0}
+  select{font:inherit;padding:6px 8px;border:1px solid var(--bd);border-radius:8px;background:#fff}
+  .wrap{overflow:auto;max-height:360px;border:1px solid var(--bd);border-radius:8px}
+  table{border-collapse:collapse;font-size:13px;width:100%;min-width:600px}
+  th,td{border-bottom:1px solid var(--bd);padding:6px 9px;text-align:left;white-space:nowrap}
+  th{background:#f0f4fa;position:sticky;top:0}
+  tr:nth-child(even) td{background:#fafbfd}
+  .drop{border:2px dashed var(--bd);border-radius:12px;padding:34px 16px;text-align:center;color:var(--mut);cursor:pointer;transition:.15s;background:#fbfcfe}
+  .drop.over{border-color:var(--acc);background:#eef4ff}
+  .bar{height:8px;background:#eef1f5;border-radius:6px;overflow:hidden;margin-top:10px}
+  .bar>i{display:block;height:100%;width:0;background:var(--acc);transition:width .2s}
+  .hint{border-left:3px solid var(--acc);background:#f4f8ff;padding:8px 12px;border-radius:0 8px 8px 0;font-size:13px;color:#1e3a8a;margin-bottom:14px}
+  .stat{font-size:13px;color:var(--mut)}
+  .hidden{display:none}
+  .err{color:#b91c1c;background:#fef2f2;border:1px solid #fecaca;padding:8px 12px;border-radius:8px;font-size:13px}
+  footer{text-align:center;color:var(--mut);font-size:12px;padding:10px 0 30px}
+  code{background:#eef1f5;padding:1px 6px;border-radius:5px;font-size:12px}
+</style>
+</head>
+<body>
+<header>
+  <h1>🧹 表格清洗台</h1>
+  <span class="tag">本地处理</span>
+  <span class="priv">🔒 全程在本机浏览器运行 · 数据不上传任何服务器</span>
+</header>
+<main>
+  <div class="card">
+    <div class="hint">把 <b>CSV / TSV</b> 表格拖进来或点选文件。随后用下面的一键清理动作去脏、去重、整理，最后导出干净文件。你的数据不会离开这台电脑。</div>
+    <div class="drop" id="drop">
+      将 <b>.csv / .tsv / .txt</b> 文件拖到此处，或 <button type="button" class="btn-o" id="pick">选择文件</button>
+    </div>
+    <input type="file" id="file" accept=".csv,.tsv,.txt,text/csv,text/tab-separated-values" class="hidden">
+    <div class="stat" id="stat"></div>
+    <div class="bar hidden" id="bar"><i></i></div>
+    <div id="errbox"></div>
+  </div>
+
+  <div class="card hidden" id="work">
+    <h2 data-t="toolbar">清理动作</h2>
+    <div class="toolbar">
+      <label class="cb"><input type="checkbox" id="cTrim"> 去首尾空格</label>
+      <label class="cb"><input type="checkbox" id="cDropEmpty"> 删全空行</label>
+      <label class="cb"><input type="checkbox" id="cDedup"> 按整行去重</label>
+    </div>
+    <div class="toolbar">
+      <span class="muted">按某列去重：</span>
+      <select id="dedupCol"></select>
+      <button type="button" class="btn-o" id="btnDedupCol">去重该列(保留首次)</button>
+    </div>
+    <div class="toolbar">
+      <span class="muted">筛选行(某列包含关键词)：</span>
+      <select id="filCol"></select>
+      <input id="filKw" placeholder="关键词" style="padding:6px 8px;border:1px solid var(--bd);border-radius:8px;font:inherit">
+      <button type="button" class="btn-o" id="btnFilter">筛选</button>
+      <button type="button" class="btn-o" id="btnClearFilter">清除筛选</button>
+    </div>
+    <div style="height:1px;background:var(--bd);margin:8px 0"></div>
+    <div class="toolbar">
+      <button type="button" class="btn-r" id="btnReset">↺ 恢复原始数据</button>
+    </div>
+
+    <h2 style="margin-top:20px">预览</h2>
+    <div class="wrap"><div id="table"></div></div>
+
+    <h2>导出</h2>
+    <div class="toolbar">
+      <button type="button" class="btn-p" id="btnCSV">⬇ 导出 CSV</button>
+      <button type="button" class="btn-p" id="btnTSV">⬇ 导出 TSV</button>
+      <span class="muted" id="shape"></span>
+    </div>
+  </div>
+  <footer>表格清洗台 v1.0 · 纯前端 · 无跟踪无上传 · 金爪 🐾</footer>
+</main>
+
+<script>
+(() => {
+  // ---------- 极简 CSV/TSV 解析（支持引号、逗号/制表符、换行符内嵌字段） ----------
+  function parseDelimited(text, delim) {
+    const rows = [];
+    let field = '', row = [], i = 0, inQ = false;
+    while (i < text.length) {
+      const c = text[i];
+      if (inQ) {
+        if (c === '"') {
+          if (text[i+1] === '"') { field += '"'; i += 2; continue; }
+          inQ = false; i++; continue;
+        }
+        field += c; i++; continue;
+      }
+      if (c === '"') { inQ = true; i++; continue; }
+      if (c === delim) { row.push(field); field = ''; i++; continue; }
+      if (c === '\r') { i++; continue; }
+      if (c === '\n') { row.push(field); rows.push(row); row = []; field=''; i++; continue; }
+      field += c; i++;
+    }
+    if (field !== '' || row.length) { row.push(field); rows.push(row); }
+    return rows.filter(r => r.some(c => c !== ''));
+  }
+  function toDelimited(rows, delim) {
+    const esc = c => {
+      const s = c === null || c === undefined ? '' : String(c);
+      return /["\n\r]/.test(s) || s.includes(delim)
+        ? '"' + s.replace(/"/g, '""') + '"'
+        : s;
+    };
+    return rows.map(r => r.map(esc).join(delim)).join('\r\n');
+  }
+
+  const state = { raw: [], original: [] };
+  const $ = id => document.getElementById(id);
+  const drop = $('drop'), file = $('file');
+
+  function setErr(m){ const b=$('errbox'); b.innerHTML=m?`<div class="err">${m}</div>`:''; }
+  function tsvOrCsv(name, text){
+    const ext = (name||'').toLowerCase();
+    // 列分隔符探测：优先 tab，若无 tab 再用逗号
+    const firstLine = text.split(/\r?\n/).find(Boolean) || '';
+    const tabC = (firstLine.match(/\t/g)||[]).length;
+    const comC = (firstLine.match(/,/g)||[]).length;
+    if (ext.endsWith('.tsv')) return '\t';
+    if ((ext.endsWith('.csv')) || /^.*\.txt$/.test(ext)) return tabC>comC && tabC>0 ? '\t' : ','; 
+    return tabC>comC ? '\t' : ',';
+  }
+
+  function render(rows){
+    if(!rows || !rows.length){ $('table').innerHTML='<div class="muted" style="padding:14px">（无数据）</div>'; return; }
+    const head = rows[0];
+    const body = rows.slice(0, 800);
+    let h = `<table><thead><tr>${head.map(c=>`<th>${c}</th>`).join('')}</tr></thead><tbody>`;
+    body.forEach(r=>{ h += `<tr>${head.map((_,i)=>{const v=r[i]??'';return `<td title="${String(v).replace(/"/g,'&quot;')}">${String(v).replace(/&/g,'&amp;').replace(/</g,'&lt;')}</td>`;}).join('')}</tr>`; });
+    h += '</tbody></table>';
+    const extra = rows.length>800 ? ` <span class="muted">…仅预览前 800/${rows.length} 行</span>` : '';
+    $('table').innerHTML = h + extra;
+  }
+
+  function loadData(text, name){
+    const delim = tsvOrCsv(name, text);
+    const rows = parseDelimited(text.replace(/^\uFEFF/,''), delim);
+    if(rows.length<1){ setErr('未能解析出表格内容，请确认是有效文本表格。'); return; }
+    setErr('');
+    state.original = rows.map(r=>r.slice());
+    state.raw = rows.map(r=>r.slice());
+    refresh();
+    $('work').classList.remove('hidden');
+    $('stat').textContent = `已载入 ${name||'文件'} · 原始 ${rows.length} 行 × ${rows[0].length} 列（分隔符：${delim==='\t'?'制表符':'英文逗号'}）`;
+    populateCols();
+    const bar=$('bar'); bar.classList.remove('hidden'); bar.querySelector('i').style.width='100%';
+  }
+
+  function populateCols(){
+    const cols = state.raw[0];
+    const opts = cols.map((c,i)=>`<option value="${i}">${c||('列'+(i+1))}</option>`).join('');
+    $('dedupCol').innerHTML = opts;
+    $('filCol').innerHTML = opts;
+  }
+
+  function refresh(){
+    render(state.raw);
+    $('shape').textContent = `${state.raw.length} 行 × ${state.raw[0]?.length||0} 列`;
+    populateCols();
+  }
+
+  // 动作
+  // 勾选即对当前数据执行一次该清理，执行后自动取消勾选，可叠加使用
+  $('cTrim').onchange = ()=>{
+    if(!$('cTrim').checked) return; $('cTrim').checked=false;
+    state.raw = state.raw.map(r=>r.map(c=>typeof c==='string'?c.trim():c));
+    flash('已去除所有单元格首尾空格');
+  };
+  $('cDropEmpty').onchange = ()=>{
+    if(!$('cDropEmpty').checked) return; $('cDropEmpty').checked=false;
+    state.raw = state.raw.filter((r,i)=> i===0 ? true : r.some(c=>String(c??'').trim()!==''));
+    flash('已删除空白行');
+  };
+  $('cDedup').onchange = ()=>{
+    if(!$('cDedup').checked) return; $('cDedup').checked=false;
+    const seen=new Set(); const out=[state.raw[0]];
+    state.raw.slice(1).forEach(r=>{ const k=r.map(c=>String(c??'')).join('\u0001'); if(!seen.has(k)){seen.add(k);out.push(r);} });
+    state.raw=out; flash('已按整行去重');
+  };
+
+  $('btnDedupCol').onclick = ()=>{
+    const ci = +$('dedupCol').value;
+    const seen = new Set(); const out=[];
+    state.raw.forEach((r,i)=>{ const k=r[ci]??''; if(!seen.has(k)){seen.add(k);out.push(r);} });
+    state.raw = out; refresh();
+  };
+  $('btnFilter').onclick = ()=>{
+    const ci = +$('filCol').value; const kw = $('filKw').value.trim();
+    if(!kw) return;
+    const head = state.raw[0];
+    const out = state.raw.filter((r,i)=> i===0 || String(r[ci]??'').includes(kw) || String(r[ci]??'').toLowerCase().includes(kw.toLowerCase()));
+    state.raw = out; refresh();
+  };
+  $('btnClearFilter').onclick = ()=>{ $('filKw').value=''; refresh(); };
+
+  // 下载
+  function download(delim,ext){
+    if(!state.raw.length) return;
+    const blob = new Blob([toDelimited(state.raw, delim)],{type:'text/plain;charset=utf-8'});
+    const a=document.createElement('a');
+    a.href=URL.createObjectURL(blob);
+    a.download='cleaned.'+ext;
+    a.click();
+    URL.revokeObjectURL(a.href);
+  }
+  $('btnCSV').onclick=()=>download(',','csv');
+  $('btnTSV').onclick=()=>download('\t','tsv');
+
+  // 载入（自动处理 GBK/GB18030 编码，避免中文乱码）
+  function readFile(f){
+    const rd = new FileReader();
+    rd.onload = e => {
+      let text = String(e.target.result);
+      if (text.indexOf('\ufffd') > -1) {
+        // UTF-8 解码出现替换符 → 用 gb18030 重读
+        const rb = new FileReader();
+        rb.onload = () => loadData(String(rb.result), f.name);
+        rb.onerror = () => setErr('读取失败（编码兼容问题）');
+        rb.readAsText(f, 'gb18030');
+        return;
+      }
+      try{ loadData(text, f.name); }
+      catch(err){ setErr('读取/解析失败：'+err.message); }
+    };
+    rd.readAsText(f, 'utf-8');
+  }
+  file.onchange = ()=>{ if(file.files[0]) readFile(file.files[0]); };
+  ['dragover','dragenter'].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.add('over');}));
+  ['dragleave','drop'].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault(); if(ev==='drop'){drop.classList.remove('over'); const f=e.dataTransfer.files[0]; if(f) readFile(f);} }));
+  $('pick').onclick=e=>{e.stopPropagation(); file.click();};
+  drop.onclick=e=>{ if(e.target.id==='pick')return; file.click(); };
+
+  let _flashT=null;
+  function flash(m){
+    $('stat').textContent = m + ' · 现 ' + (state.raw.length) + ' 行 × ' + (state.raw[0]?.length||0) + ' 列';
+    refresh();
+    clearTimeout(_flashT);
+    _flashT = setTimeout(()=>{ $('stat').textContent = `当前 ${state.raw.length} 行 × ${state.raw[0]?.length||0} 列`; }, 2600);
+  }
+  $('btnReset').onclick = ()=>{ state.raw = state.original.map(r=>r.slice()); flash('已恢复原始数据'); };
+})();
+</script>
+</body>
+</html>
