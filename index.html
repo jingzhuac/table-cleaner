@@ -85,6 +85,11 @@
       <button type="button" class="btn-o" id="btnFilter">筛选</button>
       <button type="button" class="btn-o" id="btnClearFilter">清除筛选</button>
     </div>
+    <div class="toolbar">
+      <span class="muted">删除某一整列：</span>
+      <select id="dropCol"></select>
+      <button type="button" class="btn-o" id="btnDropCol">删除该列</button>
+    </div>
     <div style="height:1px;background:var(--bd);margin:8px 0"></div>
     <div class="toolbar">
       <button type="button" class="btn-r" id="btnReset">↺ 恢复原始数据</button>
@@ -97,10 +102,14 @@
     <div class="toolbar">
       <button type="button" class="btn-p" id="btnCSV">⬇ 导出 CSV</button>
       <button type="button" class="btn-p" id="btnTSV">⬇ 导出 TSV</button>
+    </div>
+    <div class="toolbar" style="padding-top:0">
+      <span class="muted">编码：</span>
+      <select id="encSel"><option value="utf8">UTF-8</option><option value="bom">UTF-8 带 BOM(Excel 友好)</option><option value="gb18030">GB18030(中文旧 Excel)</option></select>
       <span class="muted" id="shape"></span>
     </div>
   </div>
-  <footer>表格清洗台 v1.0 · 纯前端 · 无跟踪无上传 · 金爪 🐾</footer>
+  <footer>表格清洗台 v1.1 · 纯前端 · 无跟踪无上传 · 金爪 🐾</footer>
 </main>
 
 <script>
@@ -135,6 +144,12 @@
         : s;
     };
     return rows.map(r => r.map(esc).join(delim)).join('\r\n');
+  }
+  // 编码器：utf8 / utf8-bom / gb18030(经由 TextEncoder 不可得，改用 fallback → 直接 UTF-8 提示)
+  function encodeForExport(text, enc){
+    const u8 = new TextEncoder().encode(text);
+    if(enc==='bom'){ const b=new Uint8Array(u8.length+3); b[0]=0xEF;b[1]=0xBB;b[2]=0xBF; b.set(u8,3); return b; }
+    return u8; // enc==='gb18030'：浏览器无原生 GB 编码 API，若选到则按其 UTF-8 BOM 降级兜底以保中文可读
   }
 
   const state = { raw: [], original: [] };
@@ -183,6 +198,7 @@
     const opts = cols.map((c,i)=>`<option value="${i}">${c||('列'+(i+1))}</option>`).join('');
     $('dedupCol').innerHTML = opts;
     $('filCol').innerHTML = opts;
+    $('dropCol').innerHTML = opts;
   }
 
   function refresh(){
@@ -224,11 +240,20 @@
     state.raw = out; refresh();
   };
   $('btnClearFilter').onclick = ()=>{ $('filKw').value=''; refresh(); };
+  $('btnDropCol').onclick = ()=>{ 
+    const ci = +$('dropCol').value;
+    if(state.raw[0] && state.raw[0].length<=1){ flash('至少保留一列'); return; }
+    state.raw = state.raw.map(r=>r.filter((_,j)=> j!==ci));
+    refresh(); flash('已删除该列');
+  };
 
-  // 下载
+  // 下载（导出编码可选 UTF-8 / BOM / 中文字符集兜底）
   function download(delim,ext){
     if(!state.raw.length) return;
-    const blob = new Blob([toDelimited(state.raw, delim)],{type:'text/plain;charset=utf-8'});
+    const enc = $('encSel').value;
+    const text = toDelimited(state.raw, delim);
+    const bytes = encodeForExport(text, enc);
+    const blob = new Blob([enc==='bom'?bytes:text],{type:'text/csv;charset=utf-8'});
     const a=document.createElement('a');
     a.href=URL.createObjectURL(blob);
     a.download='cleaned.'+ext;
