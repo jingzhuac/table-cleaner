@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://jingzhuac.github.io/table-cleaner/sitemap.xml
