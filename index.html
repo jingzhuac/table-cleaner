@@ -3,7 +3,12 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>表格清洗台 · 本地隐私处理</title>
+<meta name="description" content="CSV / TSV 表格在线清洗去重去空格小工具：本地隐私处理，数据不上传任何服务器。免费、纯前端、无依赖，拖入即用。">
+<meta name="keywords" content="CSV清洗,TSV去重,表格去空格,去重工具,CSV在线,Excel清洗,本地隐私表格工具">
+<meta property="og:title" content="表格清洗台 · 本地隐私 CSV/TSV 清理">
+<meta property="og:description" content="免费在线清洗 CSV/TSV：去重、去空格、筛列、删列——全程在本机浏览器处理，数据绝不上传。">
+<meta property="og:type" content="website">
+<title>表格清洗台 · 本地隐私 CSV/TSV 清洗工具</title>
 <style>
   :root{
     --bg:#f4f6f9; --card:#ffffff; --bd:#e3e8ef; --tx:#1f2933; --mut:#6b7683;
@@ -56,7 +61,7 @@
 </header>
 <main>
   <div class="card">
-    <div class="hint">把 <b>CSV / TSV</b> 表格拖进来或点选文件。随后用下面的一键清理动作去脏、去重、整理，最后导出干净文件。你的数据不会离开这台电脑。</div>
+    <div class="hint">把 <b>CSV / TSV</b> 表格拖进来或点选文件。随后用下面的一键清理动作去脏、去重、整理，最后导出干净文件。你的数据不会离开这台电脑。<br><span class="muted">想先看看？</span> <button type="button" class="btn-o" id="btnSample">载入示例数据</button></div>
     <div class="drop" id="drop">
       将 <b>.csv / .tsv / .txt</b> 文件拖到此处，或 <button type="button" class="btn-o" id="pick">选择文件</button>
     </div>
@@ -109,7 +114,7 @@
       <span class="muted" id="shape"></span>
     </div>
   </div>
-  <footer>表格清洗台 v1.1 · 纯前端 · 无跟踪无上传 · 金爪 🐾</footer>
+  <footer>表格清洗台 v1.2 · 纯前端 · 无跟踪无上传 · 金爪 🐾</footer>
 </main>
 
 <script>
@@ -295,6 +300,14 @@
     _flashT = setTimeout(()=>{ $('stat').textContent = `当前 ${state.raw.length} 行 × ${state.raw[0]?.length||0} 列`; }, 2600);
   }
   $('btnReset').onclick = ()=>{ state.raw = state.original.map(r=>r.slice()); flash('已恢复原始数据'); };
+
+  // 一键载入示例（演示/快速试用，便于分享传播）
+  $('btnSample').onclick = ()=>{
+    loadData(
+`客户编号\t客户名称\t省份\t成交金额\t销售日期\n  C1001  \t  张三  \t浙江\t1200\t2026-08-01\nC1001\t张三\t浙江\t1200\t2026-08-01\nC1002\t李四\t广东\t800\t2026-08-02\n\nC1003\t王五\t江苏\t1550\t2026-08-03\nC1004\t 赵六\t四川\t600\t2026-08-05\nC1005\t孙七\t北京\t999\t2026-08-07`,
+    '示例订单.tsv');
+    flash('已载入示例（含重复行、空格、空行，去试试清理）');
+  };
 })();
 </script>
 </body>
